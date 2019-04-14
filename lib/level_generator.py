@@ -50,19 +50,23 @@ class LevelGenerator:
 
     def create_enemy(self):
 
-        if self.enemy_send == self.enemy_number:
-
-            level_generated = True
-            self.enemy_send = 0
-            self._enemy_stat()
-        else:
-
-            self._create_bonus()
-            self.enemy_send += 1
-            level_generated = False
-
         posx = random.randint(100, self.screen_resolution[0])
         posy = random.randint(100, self.screen_resolution[1])
         self.enemy_stat["pos"] = [posx, posy]
 
-        return Enemy(self.player, self.enemy_stat), level_generated
+        if self.enemy_send == self.enemy_number:
+            level_generated = True
+            self.enemy_send = 0
+
+            an_enemy = Enemy(self.player, self.enemy_stat, self.clock)
+            an_enemy.set_attr("alive", False)
+            self._enemy_stat()
+
+        else:
+
+            self._create_bonus()
+            self.enemy_send += 1
+            an_enemy = Enemy(self.player, self.enemy_stat, self.clock)
+            level_generated = False
+
+        return an_enemy, level_generated

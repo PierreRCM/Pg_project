@@ -4,9 +4,9 @@ import numpy as np
 import os
 from pygame.locals import *
 from pyganim import getImagesFromSpriteSheet
-from image_data import image_data_original
+from image_data import init_image, image_data_original
 pg.init()
-print(os.getcwd())
+
 
 class Bullet(pg.sprite.Sprite):
 
@@ -101,10 +101,10 @@ class Player(pg.sprite.Sprite):
         self.weapon = Weapon("Gun")
         self.shortcut = {"up": K_z, "down": K_s, "left": K_q, "right": K_d, "shoot": K_e}
         self.last_shot = pg.time.get_ticks()
-        self._attr = {"reference": 270, "position": [80, 80], "old_position": [10, 10], "speed": 180, "hp": 100,
+        self._attr = {"reference": 270, "position": [80, 80], "old_position": [10, 10], "speed": 180, "hp": 100000,
                       "alive": True, "border": False, "mouse": [0, 0], "direction": 0,
-                      "tick": pg.time.Clock().tick(60)/1000, "money": 0, "hp_max": 100, "hit": False,
-                      "damage": self.weapon.damage, "rate": self.weapon.rate}
+                      "tick": pg.time.Clock().tick(60)/1000, "money": 0, "hp_max": 100000, "hit": False,
+                      "damage": self.weapon.damage*10, "rate": self.weapon.rate*30}
 
         self.all_bonus = []
         self.shot_ready = True
@@ -208,8 +208,8 @@ class Player(pg.sprite.Sprite):
     def create_bullet(self):
         """return a bullet instance"""
 
-        new_bullet = Bullet(self.name, self._attr["direction"], self._attr["position"], self.weapon.range,
-                            self._attr["damage"], self.weapon.speed, self._attr["tick"])  # get_attr method for weapon
+        new_bullet = Bullet(self.name, self._attr["direction"], self._attr["position"], self.weapon.range*10,
+                            self._attr["damage"], self.weapon.speed*4, self._attr["tick"])  # get_attr method for weapon
         self.fire = False
 
         return new_bullet
@@ -253,36 +253,64 @@ class Player(pg.sprite.Sprite):
 
 class Enemy(pg.sprite.Sprite):  # TODO: Create an entity class, and different enemy, different IA
 
-    def __init__(self, player, carac):
+    all_images = init_image("/picture/sprite_monster1.png", "/picture/sprite_monster2.png")
+    def __init__(self, player, carac, clock):
 
         self.name = ""
         self.image = "Enemy"  # image that ll be blit
-        self.my_image = self._init_image()
+        self.clock = clock
+        self.my_image = Enemy.all_images["LEFT"][0]
         self.target = player
-        self.all_images = getImagesFromSpriteSheet(os.getcwd() + "/picture/sprite_monster1.png", rows=2, cols=3)
-
-        self.my_image.set_colorkey((255, 255, 255))
-        image_data_original[self.image].set_colorkey((255, 255, 255))  # Set image transparence
-        self.rect = image_data_original[self.image].get_rect()  # called when updating sprite
+        self.rect = self.my_image.get_rect()  # called when updating sprite
         self.last_shot = pg.time.get_ticks()
         self._attr = {"reference": 270, "position": [carac["pos"][0], carac["pos"][1]], "old_position": [10, 10],
                       "speed": carac["speed"], "hp": carac["hp"], "alive": True, "border": False, "direction": 0,
                       "tick": pg.time.Clock().tick(60)/1000, "rate": carac["rate"], "damage": carac["damage"],
                       "range": carac["range"], "shot_speed": carac["shot_speed"], "hit": False,
-                      "bonus_bool": carac["bonus_bool"], "bonus": carac["bonus"]}
+                      "bonus_bool": carac["bonus_bool"], "bonus": carac["bonus"], "direc": "LEFT"}
         self.shot_ready = True
         self.fire = False
+        self.index_image = 0
+        self.display_time = 0
         pg.sprite.Sprite.__init__(self)
 
     def update(self):
-        """Update new rectangle"""
+        """Call all method, in order to update new rectangle pos"""
 
         self._decision()
+        self._direction()
+        self._which_dir()
         self._cooldown_shot()
         self._shoot()
-        center_image = image_data_original[self.image].get_rect().center  # center of our rotated image,
+        self.display_time += self.clock.get_time()/1000
+        self.my_image = Enemy.all_images[self._attr["direc"]][self.index_image]
+
+        center_image = self.my_image.get_rect().center  # center of our rotated image,
         self.rect = pg.Rect((self._attr["position"][0] - center_image[0],  # so we can position our rectangle
-                             self._attr["position"][1] - center_image[1]), image_data_original[self.image].get_size())
+                             self._attr["position"][1] - center_image[1]), self.my_image.get_size())
+
+        if self.display_time > 0.2:
+            if self.index_image == len(Enemy.all_images["UP"]) - 1: # All sprite sheet have the same number of images for motion
+                self.index_image = 0
+                self.display_time = 0
+            else:
+
+                self.index_image += 1
+                self.display_time = 0
+
+    def _which_dir(self):
+        """Set direction of the sprite UP, DOWN, LEFT, RIGHT"""
+
+        direction = self._attr["direction"]
+
+        if 45 >= (direction - 90) > 0 or 360 >= (direction - 90) > 315:
+            self._attr["direc"] = "UP"
+        elif 135 >= (direction - 90) > 45:
+            self._attr["direc"] = "LEFT"
+        elif 225 >= (direction - 90) > 135:
+            self._attr["direc"] = "DOWN"
+        else:
+            self._attr["direc"] = "RIGHT"
 
     def create_bullet(self):
         """return a bullet instance"""
@@ -292,14 +320,6 @@ class Enemy(pg.sprite.Sprite):  # TODO: Create an entity class, and different en
         self.fire = False
 
         return new_bullet
-
-    def _init_image(self):
-
-        global image_data_original
-
-        image_data_original[self.image] = pg.image.load(os.getcwd() + "/picture/player.png").convert()
-
-        return pg.image.load(os.getcwd() + "/picture/player.png").convert()
 
     def _decision(self):
 
@@ -339,7 +359,6 @@ class Enemy(pg.sprite.Sprite):  # TODO: Create an entity class, and different en
         norm = np.sqrt((self.target.get_attr("position")[0] - self._attr["position"][0])**2 +
                        (self.target.get_attr("position")[1] - self._attr["position"][1])**2)
         if norm < self._attr["range"]:
-            self._direction_shot()
             self.fire = True
 
     def _cooldown_shot(self):
@@ -368,7 +387,7 @@ class Enemy(pg.sprite.Sprite):  # TODO: Create an entity class, and different en
 
         self._attr[variable] = value
 
-    def _direction_shot(self):
+    def _direction(self):
 
         deltax = self.target.get_attr("position")[0] - self._attr["position"][0]
         deltay = self.target.get_attr("position")[1] - self._attr["position"][1]

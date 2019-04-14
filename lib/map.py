@@ -3,7 +3,7 @@ from pygame.locals import *
 import os
 import Entity as en
 import bonus as b
-
+from image_data import convert_images
 pg.init()
 pg.font.init()
 
@@ -109,7 +109,7 @@ class Map:
 
         now = pg.time.get_ticks()
 
-        if (now - self.last_enemy)/1000 >= 1:
+        if (now - self.last_enemy)/1000 >= 0.2:
 
             self.last_enemy = now
 
@@ -125,7 +125,7 @@ class Map:
         for sprite in self.groupe_dict["Entity"]:
             for i, bullet in enumerate(self.groupe_dict["Bullets"]):
                 if (sprite.name is not bullet.owner) and (sprite.rect.colliderect(bullet)):
-                    print(i)
+
                     new_hp = sprite.get_attr("hp") - bullet.get_attr("damage")
                     sprite.set_attr("hp", new_hp)
 
@@ -172,9 +172,10 @@ class Screen:
 
     def __init__(self):
 
-        self.resolution = (1500, 800)
-        self.res_playable = (1500, 760)
+        self.resolution = (1000, 600)
+        self.res_playable = (1000, 560)
         self.screen = pg.display.set_mode(self.resolution)
+        convert_images(en.Enemy.all_images)
         self.fullscreen = False
         self.game_name = pg.display.set_caption("CURRENTLY NONE")
         self.shortcut = {"FULLSCREEN": K_F1, "QUIT": K_ESCAPE} # we may create a menu when pressing a key
@@ -184,7 +185,7 @@ class Screen:
         self.last_call = 0
         self.font_b_round = pg.font.SysFont("ubuntu", 40)
         self.damage_font = pg.font.SysFont("ubuntu", 9)
-        self.timer = 3
+        self.timer = 1
         self.countdown_done = False
         self.font_2_display = self.font_b_round.render("Wave number : " + str(1) + "..." + str(self.timer) + "...",
                                                        0, (255, 255, 255))

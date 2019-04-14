@@ -73,7 +73,6 @@ class Main:
     def game_loop(self):
 
         while self.gameOn:
-
             self._handle_level_state()
 
             self.clock.tick(60)
@@ -88,8 +87,10 @@ class Main:
 
             # Updating / displaying on screen
             self.map.check_borders(self.screen.res_playable)
+
             self.map.collision()
             self.map.update()
+
             self.map.render(self.screen.screen)
             self.map.render_screen_stuff(self.screen.screen)
             self.screen.check_input(self.input)
@@ -97,6 +98,7 @@ class Main:
             pg.display.update()
             pg.event.pump()
             self.gameOn = self.screen.window
+
 
 
 main = Main()
