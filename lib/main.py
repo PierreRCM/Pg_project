@@ -40,7 +40,7 @@ class Main:
     def _handle_level_state(self):
 
         sc_stuff = self.screen.draw_hp(self.player)
-        sc_stuff.extend(self.screen.display_damage(self.player, self.clock))
+        sc_stuff.extend(self.screen.display(self.player, self.clock))
         self.map.screen_stuff.extend(sc_stuff)
 
         if self.level_clear:
@@ -61,7 +61,7 @@ class Main:
             font_surface, font_pos = self.screen.new_wave_countdown(self.level)
             self.map.screen_stuff.append((font_surface, font_pos))
 
-        elif not self.player.get_attr("alive"):
+        elif not self.player.flags["alive"]:
 
             font = self.screen.game_over()
             self.map.screen_stuff.extend(font)
@@ -88,8 +88,10 @@ class Main:
 
             # Updating / displaying on screen
             self.map.check_borders(self.screen.res_playable)
+
             self.map.collision()
             self.map.update()
+
             self.map.render(self.screen.screen)
             self.map.render_screen_stuff(self.screen.screen)
             self.screen.check_input(self.input)

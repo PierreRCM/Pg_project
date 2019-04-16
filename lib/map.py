@@ -3,7 +3,7 @@ from pygame.locals import *
 import os
 import Entity as en
 import bonus as b
-
+from image_data import convert_images
 pg.init()
 pg.font.init()
 
@@ -15,6 +15,7 @@ class Map:
         self.image = pg.image.load(os.getcwd() + "/picture/map.png").convert()
         self.rect = self.image.get_rect()
         self.groupe_dict = groupe_dict  # Actually contain 2 sprite groupe keys Bullets and Players
+        self.player = groupe_dict["Entity"].sprites()[0]
         self.screen_stuff = list()
         self.enemy_to_unpack = list()
         self.enemy_ready = True
@@ -39,23 +40,23 @@ class Map:
 
                 if sprite.get_attr("position")[0] + sprite.rect.w + self.border_width >= screen_rect[0]:
 
-                    sprite.set_attr("border", True)
+                    sprite.flags["border"] = True
 
                 elif sprite.get_attr("position")[0] - self.border_width <= 0:
 
-                    sprite.set_attr("border", True)
+                    sprite.flags["border"] = True
 
                 elif sprite.get_attr("position")[1] + sprite.rect.h - self.border_width >= screen_rect[1]:
 
-                    sprite.set_attr("border", True)
+                    sprite.flags["border"] = True
 
                 elif sprite.get_attr("position")[1] - sprite.rect.h - self.border_width <= 0:
 
-                    sprite.set_attr("border", True)
+                    sprite.flags["border"] = True
 
                 else:
 
-                    sprite.set_attr("border", False)
+                    sprite.flags["border"] = False
 
     def render(self, screen):
 
@@ -76,18 +77,19 @@ class Map:
         """input player instance check whether the player create a sprite, add it to the map"""
 
         for sprite in self.groupe_dict["Entity"].sprites():
-            if sprite.fire and sprite.shot_ready:
+
+            if sprite.flags["fire"] and sprite.flags["shot_ready"]:
 
                 a_bullet = sprite.create_bullet()
                 self.groupe_dict["Bullets"].add(a_bullet)
-                sprite.fire = False
+                sprite.flags["fire"] = False
 
     def _check_alive(self):
         """Check whether each sprites is alive remove them if it's not the case"""
 
         for groupe in self.groupe_dict.values():
             for sprite in groupe.sprites():
-                if not sprite.get_attr("alive"):
+                if not sprite.flags["alive"]:
 
                     groupe.remove(sprite)
 
@@ -125,36 +127,34 @@ class Map:
         for sprite in self.groupe_dict["Entity"]:
             for i, bullet in enumerate(self.groupe_dict["Bullets"]):
                 if (sprite.name is not bullet.owner) and (sprite.rect.colliderect(bullet)):
-                    print(i)
+
                     new_hp = sprite.get_attr("hp") - bullet.get_attr("damage")
                     sprite.set_attr("hp", new_hp)
 
-                    #######################################################################
-                    # Player is the first character of the group, set true if is bullet hit someone
-                    if bullet.owner == self.groupe_dict["Entity"].sprites()[0].name:
+                    self.player.flags["hit"] = True
 
-                        self.groupe_dict["Entity"].sprites()[0].set_attr("hit", True)
-                    #######################################################################
                     if sprite.get_attr("hp") <= 0:
 
                         sprite.set_attr("hp", 0)
-                        sprite.set_attr("alive", False)
+                        sprite.flags["alive"] = False
 
                         if isinstance(sprite, en.Enemy):
-                            if sprite.get_attr("bonus_bool"):
+                            self.player.handle_xp(sprite.get_attr("xp"))
+
+                            if sprite.flags["bonus_bool"]:
 
                                 sprite.get_attr("bonus").set_attr("position", sprite.get_attr("position"))
                                 self.groupe_dict["Bonus"].add(sprite.get_attr("bonus"))
 
-                    bullet.set_attr("alive", False)
+                    self.groupe_dict["Bullets"].remove(bullet)
 
         for bonus in self.groupe_dict["Bonus"]:
 
             if bonus.get_attr("display_time") > bonus.get_attr("available_time"):
 
-                bonus.set_attr("alive", False)
+                bonus.flags["alive"] = False
 
-            if self.groupe_dict["Entity"].sprites()[0].rect.colliderect(bonus):
+            if self.player.rect.colliderect(bonus):
 
                 if isinstance(bonus, b.BonusNova):
 
@@ -164,17 +164,19 @@ class Map:
                     self.groupe_dict["Bullets"].add(bonus.bullets)
 
                 else:
-                    self.groupe_dict["Entity"].sprites()[0].add_bonus(bonus)
-                bonus.set_attr("alive", False)
+                    self.player.add_bonus(bonus)
+
+                bonus.flags["alive"] = False
 
 
 class Screen:
 
     def __init__(self):
 
-        self.resolution = (1500, 800)
-        self.res_playable = (1500, 760)
+        self.resolution = (1800, 900)
+        self.res_playable = (1800, 860)
         self.screen = pg.display.set_mode(self.resolution)
+        convert_images(en.Enemy.all_images)
         self.fullscreen = False
         self.game_name = pg.display.set_caption("CURRENTLY NONE")
         self.shortcut = {"FULLSCREEN": K_F1, "QUIT": K_ESCAPE} # we may create a menu when pressing a key
@@ -183,13 +185,15 @@ class Screen:
         self.window = True
         self.last_call = 0
         self.font_b_round = pg.font.SysFont("ubuntu", 40)
-        self.damage_font = pg.font.SysFont("ubuntu", 9)
-        self.timer = 3
+        self.timer = 1
         self.countdown_done = False
         self.font_2_display = self.font_b_round.render("Wave number : " + str(1) + "..." + str(self.timer) + "...",
                                                        0, (255, 255, 255))
-        self.now = 0
-        self.damage_display = None
+        self.time_dic = {"xp": 0, "hit": 0, "levelup": 0}
+        self.font_style = {"xp": ["+ ", 1, (0, 255, 0), 10, "xp", "ubuntu", []],
+                           "levelup": ["Level", 1, (255, 255, 0), 25, "reached !", "ubuntu", []],
+                           "hit": ["", 1, (255, 0, 0), 10, "", "ubuntu", []]}
+        self.stuff_displayed = list()
 
     def check_input(self, inputs):
 
@@ -198,14 +202,15 @@ class Screen:
             if not self.fullscreen:
 
                 pg.display.set_mode(self.res_playable, pg.FULLSCREEN)
+                self.fullscreen = True
 
             else:
 
                 pg.display.set_mode(self.res_playable)
+                self.fullscreen = False
 
         if inputs[self.shortcut["QUIT"]]:
 
-            self.fullscreen = False
             self.window = False
 
     def new_wave_countdown(self, level):
@@ -253,26 +258,39 @@ class Screen:
 
         return [(self.font_2_display, font_pos)]
 
-    def display_damage(self, player, clock):
+    def display(self, player, clock):
 
-        p_pos = player.get_attr("position")
-        size = player.rect.size
+        for key in player.flags.keys():
 
-        if player.get_attr("hit"):
+            p_pos = player.get_attr("position")
+            size = player.rect.size
+            print(key, player.flags[key])
+            if player.flags[key] and key in self.time_dic.keys():
 
-            self.now += clock.get_time()
-            self.damage_display = self.damage_font.render(str(player.get_attr("damage")), 1, (255, 255, 255))
+                self.time_dic[key] += clock.get_time()
+                font_style = pg.font.SysFont(self.font_style[key][5], self.font_style[key][3])
 
-            if self.now/1000 < 1:
+                stuff_to_displayed = font_style.render(self.font_style[key][0] + str(player.get_attr(key))
+                                                       + self.font_style[key][4], self.font_style[key][1],
+                                                       self.font_style[key][2])
 
-                font_pos = (p_pos[0] + size[0], p_pos[1] - size[1])
+                if self.time_dic[key] / 1000 < 1:
 
-                return [(self.damage_display, font_pos)]
+                    if not key == "levelup":
 
-            else:
-                player.set_attr("hit", False)
-                self.now = 0
-        return list()
+                        font_pos = (p_pos[0] + size[0], p_pos[1] - size[1]*len(self.stuff_displayed) - size[1])
+
+                    else:
+                        font_pos = (self.resolution[0] - stuff_to_displayed.get_width()[0], self.resolution[1]-100)
+
+                    self.stuff_displayed.append((stuff_to_displayed, font_pos))
+
+                else:
+
+                    self.stuff_displayed.pop(0)
+                    player.flags[key] = False
+                    self.time_dic[key] = 0
+        return self.stuff_displayed
 
 
 

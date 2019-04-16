@@ -12,7 +12,8 @@ class Bonus(pg.sprite.Sprite):
 
         self.my_image = self._init_image()
         self.my_image.set_colorkey((255, 255, 255))
-        self._attr = {"position": (0, 0), "alive": True, "display_time": 0, "available_time": 20}
+        self._attr = {"position": (0, 0), "display_time": 0, "available_time": 20}
+        self.flags = {"alive": True}
         image_data_original[self.image].set_colorkey((255, 255, 255))  # Set image transparence
         self.rect = image_data_original[self.image].get_rect()  # called when updating sprite
         self.clock = clock

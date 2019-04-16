@@ -8,7 +8,7 @@ weapon_data["Gun"]["damage"] = 15
 weapon_data["Gun"]["accuracy"] = 10
 weapon_data["Gun"]["reloading_time"] = 1
 weapon_data["Gun"]["loader"] = 10
-weapon_data["Gun"]["rate"] = 1
+weapon_data["Gun"]["rate"] = 2
 
 
 class Potion:

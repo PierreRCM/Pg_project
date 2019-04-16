@@ -21,16 +21,17 @@ class LevelGenerator:
     def _enemy_stat(self):
 
         # Todo: self level with a log function ?
-        self.enemy_number = 10 * self.level
+        self.enemy_number = 1 * self.level
         rate = 1
         shot_speed = 250 + self.level
         speed = 50 + self.level
         range_a = 250
         damage = 5 * self.level
-        hp = 10 * self.level
+        hp = 50 * self.level
+        xp = 5 * self.level
 
-        self.enemy_stat = {"rate": rate, "shot_speed": shot_speed, "speed": speed,
-                           "range": range_a, "damage": damage, "hp": hp, "bonus_bool": False, "bonus": None}
+        self.enemy_stat = {"rate": rate, "shot_speed": shot_speed, "speed": speed, "tick": self.player.get_attr("tick"),
+                           "range": range_a, "damage": damage, "hp": hp, "xp": xp, "bonus_bool": False, "bonus": None}
 
     def _create_bonus(self):
 
@@ -50,19 +51,23 @@ class LevelGenerator:
 
     def create_enemy(self):
 
-        if self.enemy_send == self.enemy_number:
-
-            level_generated = True
-            self.enemy_send = 0
-            self._enemy_stat()
-        else:
-
-            self._create_bonus()
-            self.enemy_send += 1
-            level_generated = False
-
         posx = random.randint(100, self.screen_resolution[0])
         posy = random.randint(100, self.screen_resolution[1])
         self.enemy_stat["pos"] = [posx, posy]
 
-        return Enemy(self.player, self.enemy_stat), level_generated
+        if self.enemy_send == self.enemy_number:
+            level_generated = True
+            self.enemy_send = 0
+
+            an_enemy = Enemy(self.player, self.enemy_stat, self.clock)
+            an_enemy.flags["alive"] = False
+            self._enemy_stat()
+
+        else:
+
+            self._create_bonus()
+            self.enemy_send += 1
+            an_enemy = Enemy(self.player, self.enemy_stat, self.clock)
+            level_generated = False
+
+        return an_enemy, level_generated
